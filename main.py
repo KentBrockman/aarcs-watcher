@@ -2,24 +2,21 @@ import os
 import sqlite3
 import datetime
 import time
+import configparser
 
 from bs4 import BeautifulSoup
 
-use_local_file = False
-seconds_to_repeat = 5
-repeat = False
+config = configparser.ConfigParser()
+config.read('config.ini')
 
 def get_page():
     """
     get adoptable puppies page
     """
-    if os.path.isfile('page.html') and use_local_file:
-        return open('page.html').read()
-    else:
-        from urllib.request import urlopen
-        url = "http://aarcs.ca/adoptable-dogs/adoptable-puppies/"
-        return urlopen(url).read()
-
+    from urllib.request import urlopen
+    url = "http://aarcs.ca/adoptable-dogs/adoptable-puppies/"
+    return urlopen(url).read()
+        
 def get_current_dogs():
     """
     get adoptable puppies from AARCS
@@ -68,8 +65,8 @@ def clean_out_unseen_dogs(c):
     c.execute('''SELECT id FROM dogs WHERE last_seen < ?;''', (str(datetime.datetime.utcnow() - datetime.timedelta(days=15)),))
     to_remove = c.fetchall()
     for item in to_remove:
-        print('Delete {0}'.format(item))
         c.execute('DELETE FROM dogs WHERE id = ?;', item)
+        print('Delete {0}'.format(item))
 
 if __name__ == '__main__':
     # set up DBs
@@ -87,22 +84,24 @@ if __name__ == '__main__':
     while first_pass:
         current_dogs = get_current_dogs()
 
-        # TODO: implement notifications
-        # TODO: implement configuration
         # TODO: implement logging
+        # TODO: implement notifications
         updates = {'new_dogs': [], 'new_applications': []}
 
         for dog in current_dogs:
             last_known = get_last_known_dog(conn.cursor(), dog['id'])   
 
             if last_known is None:
+                # have a new dog
                 updates['new_dogs'].append(dog)
                 insert_dog_to_db(conn.cursor(), dog)
             else:
+                # update the existing dog record (just update last_seen)
                 update_dog_in_db(conn.cursor(), dog)
 
             # last_known[2] is status
             if last_known[2] != dog['status']:
+                # a dog status has changed
                 updates['new_applications'].append(dog)
 
         if len(updates['new_dogs']) > 0:
@@ -112,8 +111,8 @@ if __name__ == '__main__':
 
         conn.commit()
         
-        first_pass = repeat
-        if repeat:
-            time.sleep(seconds_to_repeat)
+        first_pass = config['default']['Repeat']
+        if first_pass:
+            time.sleep(int(config['default']['RepeatInterval']))
 
     conn.close()
