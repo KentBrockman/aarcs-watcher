@@ -1,4 +1,6 @@
 import os
+import sqlite3
+import datetime
 
 def get_page():
     """
@@ -16,6 +18,7 @@ def get_current_dogs():
     get adoptable puppies from AARCS
     return formatted dict with dog properties
     """
+    current_time = datetime.datetime.utcnow()
     page = get_page()
 
     # bs to parse out cards for adoptable puppies
@@ -34,53 +37,66 @@ def get_current_dogs():
         if element.h3 is None:
             continue 
 
+        if element.a is None:
+            continue
+
         yield { 
+            'id': element.a['href'].replace('http://aarcs.ca/portfolio-item', '').replace('/', ''),
             'name': element.h3.text, 
-            'status': element.p.text if element.p is not None else 'no applications'
+            'status': element.p.text if element.p is not None else 'no applications',
+            'last_seen': current_time
         }
 
-def get_last_known_dog(dog_name):
+def get_last_known_dog(c, dog_id):
     """
     Get the last known state for a given dog
     """
-    dogs = [
-        {'name': 'Rogue', 'status': 'no applications'}, 
-        {'name': 'Dasher', 'status': 'application pending'}, 
-        {'name': 'Prancer', 'status': 'application pending'}, 
-        {'name': 'Portman', 'status': 'application pending'}, 
-        {'name': 'Cooper', 'status': 'no applications'}, 
-        {'name': 'Doogie', 'status': 'application pending'}, 
-        {'name': 'Easton', 'status': 'application pending'}, 
-        {'name': 'Moses', 'status': 'application pending'}, 
-        {'name': 'Jasmine', 'status': 'application pending'}, 
-        {'name': 'Royal', 'status': 'no applications'}, 
-        {'name': 'Trevor', 'status': 'application pending'}, 
-        {'name': 'Naveen', 'status': 'application pending'}, 
-        {'name': 'March', 'status': 'application pending'},
-        {'name': 'Pammi', 'status': 'application pending'}, 
-        {'name': 'Archimedes', 'status': 'no applications'}, 
-        {'name': 'Sparky', 'status': 'no applications'}
-    ]
-    
-    # BUG: what happens when two dogs have the same name?
-    # TODO: store a unique ID for the dog, use end fragment of the path
-    # TODO: implement SQLite
-    return next(filter(lambda dog: dog['name'] == dog_name, dogs))
+    c.execute('SELECT * FROM dogs WHERE id = ?;', (dog_id,))
+    return c.fetchone()
+
+def insert_dog_to_db(c, dog):
+    c.execute('''INSERT INTO dogs (id, name, status, last_seen) VALUES (?,?,?,?);''', (dog['id'], dog['name'], dog['status'], dog['last_seen'],))
+
+
+def update_dog_in_db(c, dog):
+    c.execute('''UPDATE dogs SET last_seen = ?, status = ? WHERE id = ?;''', (dog['last_seen'], dog['status'], dog['id'],))
 
 if __name__ == '__main__':
-    current_dogs = get_current_dogs()
-    # print(list(current_dogs))
+    # set up DBs
+    conn = sqlite3.connect('dogs.db')
+    c = conn.cursor()
 
-    # TODO: find dogs in DB that arent in current_dogs - flag for deletetion
-    # TODO: delete dogs that were flagged for deletion 15 days ago
+    c.execute('''SELECT name FROM sqlite_master WHERE type='table' AND name='dogs';''')
+    if c.fetchone() is None:
+        c.execute('''CREATE TABLE dogs (id, name, status, last_seen)''')
+        print('Created dogs table')
+    else:
+        print('Table already exists')
+
+    current_dogs = get_current_dogs()
+
+    # TODO: delete dogs unseen for 15 days
     # TODO: generate a report object for all state changes - notify with that
     # TODO: implement timer via config 
     # TODO: implement notifications
+    updates = []
 
     for dog in current_dogs:
-        last_known = get_last_known_dog(dog['name'])
+        last_known = get_last_known_dog(conn.cursor(), dog['id'])   
 
         if last_known is None:
             print('New dog!')
-        elif last_known['status'] != dog['status']:
-            print('{0} has gone from \'{1}\' to \'{2}\''.format(dog['name'], last_known['status'], dog['status']))
+            updates.append(dog)
+            insert_dog_to_db(conn.cursor(), dog)
+        # elif last_known['status'] != dog['status']:
+        #     print('{0} has gone from \'{1}\' to \'{2}\''.format(dog['name'], last_known['status'], dog['status']))
+        else:
+            update_dog_in_db(conn.cursor(), dog)
+
+    if len(updates) > 0:
+        print('We got some updates!')
+    else:
+        print('No change')
+
+    conn.commit()
+    conn.close()
