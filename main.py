@@ -121,7 +121,7 @@ if __name__ == '__main__':
             logging.info('have {0} new dogs'.format(len(updates['new_dogs'])))
             body = ''
             for dog in updates['new_dogs']:
-                body = body + 'See <a href="{0}">{1}</a>\n'.format(dog['link'], dog['name'])
+                body = body + 'See <a href="{0}">{1}</a> - Status: {2}\n'.format(dog['link'], dog['name'], dog['status'])
             pushover_client.send_message(body, title='{0} New Dogs!'.format(len(updates['new_dogs'])), html=1)
 
         if len(updates['new_applications']) > 0:
