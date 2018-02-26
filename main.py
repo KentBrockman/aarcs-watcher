@@ -3,11 +3,20 @@ import sqlite3
 import datetime
 import time
 import configparser
+import logging
+import sys
 
 from bs4 import BeautifulSoup
 
 config = configparser.ConfigParser()
 config.read('config.ini')
+
+logging.basicConfig(format='%(asctime)s %(message)s',
+                    filename='watcher.log', 
+                    level=int(config['default']['LogLevel']))
+ch = logging.StreamHandler(sys.stdout)
+rootLogger = logging.getLogger()
+rootLogger.addHandler(ch)
 
 def get_page():
     """
@@ -31,7 +40,6 @@ def get_current_dogs():
     # all dogs are wrapped in element 'article'
     elements = soup.findAll('article')
 
-    print('Got', len(elements), 'dogs')
     for element in elements:
         if elements.index(element) is 0:
             # skip first element in the array
@@ -66,25 +74,26 @@ def clean_out_unseen_dogs(c):
     to_remove = c.fetchall()
     for item in to_remove:
         c.execute('DELETE FROM dogs WHERE id = ?;', item)
-        print('Delete {0}'.format(item))
+        logging.info('deleting record {0}'.format(item))
 
 if __name__ == '__main__':
     # set up DBs
     conn = sqlite3.connect('dogs.db')
     c = conn.cursor()
+    logging.info('starting the process')
 
     c.execute('''SELECT name FROM sqlite_master WHERE type='table' AND name='dogs';''')
     if c.fetchone() is None:
         c.execute('''CREATE TABLE dogs (id, name, status, last_seen);''')
-        print('Created dogs table')
+        logging.info('created dogs table')
     else:
-        print('Table already exists')
+        logging.info('dogs database is ready')
 
+    logging.info('checking aarcs')
     first_pass = True
     while first_pass:
         current_dogs = get_current_dogs()
 
-        # TODO: implement logging
         # TODO: implement notifications
         updates = {'new_dogs': [], 'new_applications': []}
 
@@ -105,13 +114,13 @@ if __name__ == '__main__':
                 updates['new_applications'].append(dog)
 
         if len(updates['new_dogs']) > 0:
-            print('We got some updates!')
+            logging.info('have updates')
 
         clean_out_unseen_dogs(conn.cursor())
 
         conn.commit()
-        
-        first_pass = config['default']['Repeat']
+
+        first_pass = int(config['default']['Repeat'])
         if first_pass:
             time.sleep(int(config['default']['RepeatInterval']))
 
