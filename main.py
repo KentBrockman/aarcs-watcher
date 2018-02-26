@@ -7,6 +7,7 @@ import logging
 import sys
 
 from bs4 import BeautifulSoup
+from pushover import init, Client
 
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -64,7 +65,7 @@ def get_last_known_dog(c, dog_id):
     return c.fetchone()
 
 def insert_dog_to_db(c, dog):
-    c.execute('''INSERT INTO dogs (id, name, status, link, last_seen) VALUES (?,?,?,?);''', (dog['id'], dog['name'], dog['status'], dog['link'], dog['last_seen'],))
+    c.execute('''INSERT INTO dogs (id, name, status, link, last_seen) VALUES (?,?,?,?, ?);''', (dog['id'], dog['name'], dog['status'], dog['link'], dog['last_seen'],))
 
 def update_dog_in_db(c, dog):
     c.execute('''UPDATE dogs SET last_seen = ?, status = ?, link = ? WHERE id = ?;''', (dog['last_seen'], dog['status'], dog['link'], dog['id'],))
@@ -77,11 +78,11 @@ def clean_out_unseen_dogs(c):
         logging.info('deleting record {0}'.format(item))
 
 if __name__ == '__main__':
-    # set up DBs
-    conn = sqlite3.connect('dogs.db')
-    c = conn.cursor()
     logging.info('starting the process')
 
+    # set up DB
+    conn = sqlite3.connect('dogs.db')
+    c = conn.cursor()
     c.execute('''SELECT name FROM sqlite_master WHERE type='table' AND name='dogs';''')
     if c.fetchone() is None:
         c.execute('''CREATE TABLE dogs (id, name, status, last_seen);''')
@@ -89,12 +90,15 @@ if __name__ == '__main__':
     else:
         logging.info('dogs database is ready')
 
+    # set up pushover
+    init(config['pushover']['Token'])
+    pushover_client = Client(config['pushover']['UserKey'])
+
     logging.info('checking aarcs')
     first_pass = True
     while first_pass:
         current_dogs = get_current_dogs()
-
-        # TODO: implement notifications
+        # logging.debug(list(current_dogs))
         updates = {'new_dogs': [], 'new_applications': []}
 
         for dog in current_dogs:
@@ -109,12 +113,23 @@ if __name__ == '__main__':
                 update_dog_in_db(conn.cursor(), dog)
 
             # last_known[2] is status
-            if last_known[2] != dog['status']:
+            if last_known is not None and last_known[2] != dog['status']:
                 # a dog status has changed
                 updates['new_applications'].append(dog)
 
         if len(updates['new_dogs']) > 0:
-            logging.info('have updates')
+            logging.info('have {0} new dogs'.format(len(updates['new_dogs'])))
+            body = ''
+            for dog in updates['new_dogs']:
+                body = body + 'See <a href="{0}">{1}</a>\n'.format(dog['link'], dog['name'])
+            pushover_client.send_message(body, title='{0} New Dogs!'.format(len(updates['new_dogs'])), html=1)
+
+        if len(updates['new_applications']) > 0:
+            logging.info('have {0} updated applications'.format(len(updates['new_applications'])))
+            body = ''
+            for dog in updates['new_dogs']:
+                body = body + '<a href="{0}">{1}</a> is now {2}\n'.format(dog['link'], dog['name'], dog['status'])
+            pushover_client.send_message(body, title='{0} New Applications!'.format(len(updates['new_applications'])), html=1)
 
         clean_out_unseen_dogs(conn.cursor())
 
