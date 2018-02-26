@@ -3,6 +3,8 @@ import sqlite3
 import datetime
 import time
 
+from bs4 import BeautifulSoup
+
 use_local_file = False
 seconds_to_repeat = 5
 repeat = False
@@ -27,7 +29,6 @@ def get_current_dogs():
     page = get_page()
 
     # bs to parse out cards for adoptable puppies
-    from bs4 import BeautifulSoup
     soup = BeautifulSoup(page, 'html.parser')
 
     # all dogs are wrapped in element 'article'
@@ -86,8 +87,9 @@ if __name__ == '__main__':
     while first_pass:
         current_dogs = get_current_dogs()
 
-        # TODO: implement timer via config 
         # TODO: implement notifications
+        # TODO: implement configuration
+        # TODO: implement logging
         updates = {'new_dogs': [], 'new_applications': []}
 
         for dog in current_dogs:
