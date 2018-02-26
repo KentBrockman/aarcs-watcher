@@ -64,6 +64,7 @@ def get_last_known_dog(dog_name):
     
     # BUG: what happens when two dogs have the same name?
     # TODO: store a unique ID for the dog, use end fragment of the path
+    # TODO: implement SQLite
     return next(filter(lambda dog: dog['name'] == dog_name, dogs))
 
 if __name__ == '__main__':
@@ -73,6 +74,8 @@ if __name__ == '__main__':
     # TODO: find dogs in DB that arent in current_dogs - flag for deletetion
     # TODO: delete dogs that were flagged for deletion 15 days ago
     # TODO: generate a report object for all state changes - notify with that
+    # TODO: implement timer via config 
+    # TODO: implement notifications
 
     for dog in current_dogs:
         last_known = get_last_known_dog(dog['name'])
