@@ -1,4 +1,4 @@
 page.html
 dogs.db
-config.ini
+config.*.ini
 *.log

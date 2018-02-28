@@ -118,14 +118,14 @@ if __name__ == '__main__':
                 updates['new_applications'].append(dog)
 
         if len(updates['new_dogs']) > 0:
-            logging.info('have {0} new dogs'.format(len(updates['new_dogs'])))
+            logging.info('{0} new dogs'.format(len(updates['new_dogs'])))
             body = ''
             for dog in updates['new_dogs']:
                 body = body + 'See <a href="{0}">{1}</a> - Status: {2}\n'.format(dog['link'], dog['name'], dog['status'])
             pushover_client.send_message(body, title='{0} New Dogs!'.format(len(updates['new_dogs'])), html=1)
 
         if len(updates['new_applications']) > 0:
-            logging.info('have {0} updated applications'.format(len(updates['new_applications'])))
+            logging.info('{0} updated applications'.format(len(updates['new_applications'])))
             body = ''
             for dog in updates['new_applications']:
                 body = body + '<a href="{0}">{1}</a> is now {2}\n'.format(dog['link'], dog['name'], dog['status'])
@@ -137,6 +137,6 @@ if __name__ == '__main__':
 
         first_pass = int(config['default']['Repeat'])
         if first_pass:
-            time.sleep(int(config['default']['RepeatInterval']))
+            time.sleep(int(config['default']['RepeatIntervalInSeconds']))
 
     conn.close()
