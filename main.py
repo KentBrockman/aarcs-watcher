@@ -13,7 +13,7 @@ config = configparser.ConfigParser()
 config.read('config.ini')
 
 logging.basicConfig(format='%(asctime)s %(message)s',
-                    filename='watcher.log', 
+                    filename=os.path.join(config['default']['LogLocation'], 'watcher.logs'),
                     level=int(config['default']['LogLevel']))
 ch = logging.StreamHandler(sys.stdout)
 rootLogger = logging.getLogger()
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     logging.info('starting the process')
 
     # set up DB
-    conn = sqlite3.connect('dogs.db')
+    conn = sqlite3.connect(os.path.join(config['default']['DatabaseLocation'], 'dogs.db'))
     c = conn.cursor()
     c.execute('''SELECT name FROM sqlite_master WHERE type='table' AND name='dogs';''')
     if c.fetchone() is None:
