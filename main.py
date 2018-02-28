@@ -85,7 +85,7 @@ if __name__ == '__main__':
     c = conn.cursor()
     c.execute('''SELECT name FROM sqlite_master WHERE type='table' AND name='dogs';''')
     if c.fetchone() is None:
-        c.execute('''CREATE TABLE dogs (id, name, status, last_seen);''')
+        c.execute('''CREATE TABLE dogs (id, name, status, link, last_seen);''')
         logging.info('created dogs table')
     else:
         logging.info('dogs database is ready')
