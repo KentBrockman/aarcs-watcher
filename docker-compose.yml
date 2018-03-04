@@ -1,0 +1,9 @@
+version: '3'
+services:
+  aarcs_watcher:
+    build: .
+    volumes:
+      # or mount in a specific config file
+      - ./config.ini:/usr/src/app/config.ini
+      - .:/data
+    restart: always

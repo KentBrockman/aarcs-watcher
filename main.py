@@ -13,7 +13,7 @@ config = configparser.ConfigParser()
 config.read('config.ini')
 
 logging.basicConfig(format='%(asctime)s %(message)s',
-                    filename=os.path.join(config['default']['LogLocation'], 'watcher.logs'),
+                    filename=os.path.join(config['default']['LogLocation'], 'watcher.log'),
                     level=int(config['default']['LogLevel']))
 ch = logging.StreamHandler(sys.stdout)
 rootLogger = logging.getLogger()
@@ -55,7 +55,7 @@ def get_current_dogs():
         yield { 
             'id': element.a['href'].replace('http://aarcs.ca/portfolio-item', '').replace('/', ''),
             'name': element.h3.text, 
-            'status': element.p.text if element.p is not None else 'no applications',
+            'status': element.p.text if element.p is not None and element.p.text is not '' else 'no applications',
             'link': element.a['href'],
             'last_seen': current_time
         }
